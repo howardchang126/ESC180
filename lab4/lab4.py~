@@ -1,0 +1,430 @@
+import utilities
+
+def parse_story(file_name):
+    '''
+    (str) -> list
+
+    This function returns a list of words with bad characters removed and all characters in lower case.
+
+    >>>parse_story('test_text_parsing.txt')
+    ['the', 'code', 'should', 'handle', 'correctly', 'the', 'following', ':', 'white', 'space', '.', 'sequences', 'of', 'punctuation', 'marks', '?', '!', '!', 'periods', 'with', 'or', 'without', 'spaces', ':', 'a', '.', '.', 'a', '.', 'a', "don't", 'worry', 'about', 'numbers', 'like', '1', '.', '5', 'remove', 'capitalization']
+    '''
+    text_file = open(file_name, 'r')
+    text = text_file.read()
+    text = text.lower()
+    #replace valid punctuation with spaces on either side
+    text = text.replace('?', ' ? ')
+    text = text.replace('.', ' . ')
+    text = text.replace('!', ' ! ')
+    text = text.replace(',', ' , ')
+    text = text.replace(':', ' : ')
+    text = text.replace(';', ' ; ')
+    #replace bad punctuation with nothing
+    text = text.replace('"', ' ') #possibly add space instead of empty
+    text = text.replace('(', ' ')
+    text = text.replace(')', ' ')
+    text = text.replace('{', ' ')
+    text = text.replace('}', ' ')
+    text = text.replace('[', ' ')
+    text = text.replace(']', ' ')
+    text = text.replace('_', ' ')
+
+    text_list = text.split()
+    
+    text_file.close() 
+
+    return text_list
+
+def get_prob_from_count(counts):
+    '''
+    (list) -> list
+
+    This function returns a list of probabilities of the counts by dividing each count by the sum of counts and
+    appending the value to a new list
+
+    >>>get_prob_from_count([10, 20, 40, 30])
+    [0.1, 0.2, 0.4, 0.3]
+    '''
+    
+    counts_list = []
+
+    for i in range(0,len(counts)):
+        counts_list.append((counts[i]) / (sum(counts)))
+
+    return counts_list
+
+def build_ngram_counts(words, n):
+    '''
+    (list, int) -> dict
+
+    This function first creates a list of keys for the dictionary from the text, then the list of the keys without
+    duplicates is created. From the unique key list, a count for the number of times the key appears in the text
+    is found. Then, using that count the word after the different keys are appended to a new list. Duplicate words
+    are removed. The unique word list is used to count the number of times a word appears in the original word
+    list. A new list is created with the words and their counts, then the dictionary is created.
+
+    >>>build_ngram_counts(['the', 'child', 'will', 'go', 'out', 'to’', 'play', ',', 'and', 'the', 'child', 'can', 'not', 'be', 'sad', 'anymore', '.'], 2)
+    {('the', 'child'): [['will', 'can'], [1, 1]], ('be', 'sad'): [['anymore'], [1]], ('can', 'not'): [['be'], [1]], ('child', 'can'): [['not'], [1]], ('will', 'go'): [['out'], [1]], ('and', 'the'): [['child'], [1]], ('go', 'out'): [['to’'], [1]], (',', 'and'): [['the'], [1]], ('not', 'be'): [['sad'], [1]], ('out', 'to’'): [['play'], [1]], ('play', ','): [['and'], [1]], ('child', 'will'): [['go'], [1]], ('to’', 'play'): [[','], [1]], ('sad', 'anymore'): [['.'], [1]]}
+    '''
+    
+    ngram = {}
+
+    ngram_keys = []
+    ngram_words = []
+    ngram_words_list = []
+    word_count = []
+    number_of_items = []
+    ngram_index = []
+
+    for i in range(0, len(words)-(n)): #creates list of the keys
+        ngram_keys.append([])
+        for j in range(0, n):
+            ngram_keys[i].append(words[i+j])
+    
+    #print("ngram keys", ngram_keys)
+
+    ngram_keys_unique = []
+    for elem in ngram_keys: #removes duplicates
+        if elem not in ngram_keys_unique:
+            ngram_keys_unique.append(elem)
+    
+    for i in ngram_keys_unique: #find the number of times a key appears
+        number_of_items.append(ngram_keys.count(i))
+
+    #print(number_of_items)
+
+    for i in range(0, len(ngram_keys_unique)):
+        index_value = -1
+        ngram_words.append([])
+        for j in range(0, number_of_items[i]): 
+           index_value = ngram_keys.index(ngram_keys_unique[i], index_value + 1)
+           ngram_words[i].append(words[index_value+n]) #appends the word after the key
+    
+    #print(ngram_words)
+    
+    for i in range(0, len(ngram_words)): #removes duplicate words
+        ngram_words_list.append([])
+        for elem in ngram_words[i]:
+            if elem not in ngram_words_list[i]:
+                ngram_words_list[i].append(elem)
+
+    #print(ngram_words_list)
+    
+    for i in range(0, len(ngram_words_list)): #creates list for the number of times the word appears
+        word_count.append([])
+        for j in range(0, len(ngram_words_list[i])):
+            word_count[i].append(ngram_words[i].count(ngram_words_list[i][j]))
+    
+    #print(word_count)
+
+    word_and_count_list = []
+    for i in range(0, len(ngram_keys_unique)):
+        word_and_count_list.append([])
+        word_and_count_list[i].append(ngram_words_list[i])
+        word_and_count_list[i].append(word_count[i])
+
+    for i in range(0, len(ngram_keys_unique)):
+        ngram[tuple(ngram_keys_unique[i])] = word_and_count_list[i]
+
+    return ngram
+
+def prune_ngram_counts(counts, prune_len):
+    '''
+    (dict, int) ->  dict
+
+    This function makes a list of the keys of the counts dictionary, makes a list of the words and their counts, sorts
+    them, and appends the values of the highest frequency words according to prune_len to a new list. Then a new
+    dictionary is created according to the values.
+
+    >>>prune_ngram_counts({('i', 'love'): [['js', 'py3', 'c', 'no'], [20, 20, 10, 2]],('u', 'r'): [['cool', 'nice', 'lit', 'kind'], [8, 7, 5, 5]],('toronto', 'is'): [['six', 'drake'], [2, 3]]}, 3)
+    {('toronto', 'is'): [['drake', 'six'], [3, 2]], ('u', 'r'): [['cool', 'nice', 'kind', 'lit'], [8, 7, 5, 5]], ('i', 'love'): [['py3', 'js', 'c'], [20, 20, 10]]}
+    '''
+    
+    ngram = {}
+
+    keys_list = []
+    for i in range(0, len(counts)):
+        keys_list.append(list(counts)[i])
+
+    #print(keys_list)
+    
+    words_and_count_list = []
+    for i in keys_list:
+        words_and_count_list.append(counts[i])
+
+    #print(words_and_count_list)
+
+    for i in range(0, len(keys_list)): #goes through all the key values, sorts them
+        swap = True
+        upper = len(words_and_count_list[i][0])-1
+        while swap:
+            swap = False
+            for j in range(upper):
+                if words_and_count_list[i][1][j] > words_and_count_list[i][1][j+1]:
+                    words_and_count_list[i][1][j], words_and_count_list[i][1][j+1] = words_and_count_list[i][1][j+1], words_and_count_list[i][1][j]
+                    words_and_count_list[i][0][j], words_and_count_list[i][0][j+1] = words_and_count_list[i][0][j+1], words_and_count_list[i][0][j]
+                    swap = True
+            upper -= 1
+
+    #print(words_and_count_list)
+    
+    new_dict_values = []
+    for i in range(0, len(keys_list)): #loops through all the key values
+        new_dict_values.append([])
+        for j in range(0, 2): #makes two lists one for the words and one for the counts
+            new_dict_values[i].append([])
+            if len(words_and_count_list[i][j]) < prune_len:
+                for k in range(1, len(words_and_count_list[i][j])+1):
+                    new_dict_values[i][j].append(words_and_count_list[i][j][len(words_and_count_list[i][j]) - k])
+            else:
+                for k in range(1, prune_len+1):
+                    new_dict_values[i][j].append(words_and_count_list[i][j][len(words_and_count_list[i][j]) - k])
+
+        if len(words_and_count_list[i][0]) > prune_len:
+            tie = True
+            counter = len(words_and_count_list[i][j]) - prune_len
+            while tie:        
+                if words_and_count_list[i][1][counter] == words_and_count_list[i][1][counter-1] and counter != 0:
+                    new_dict_values[i][0].append(words_and_count_list[i][0][counter-1])
+                    new_dict_values[i][1].append(words_and_count_list[i][1][counter-1])
+                    counter -= 1
+                else:
+                    tie = False
+
+    #print(new_dict_values)
+
+    for i in range(0, len(keys_list)):
+        ngram[tuple(keys_list[i])] = new_dict_values[i]
+
+    return ngram
+
+def probify_ngram_counts(counts):
+    '''
+    (dict) -> dict
+
+    This function takes takes the given dictionary, puts the keys and key values in lists, uses the get_prob_from_count
+    function to convert the counts to probabilitys in the key values list and then uses them to make a new list.
+
+    >>>probify_ngram_counts({('i', 'love'): [['c', 'js', 'py3'], [10, 20, 20]], ('u', 'r'): [['kind', 'nice', 'cool', 'lit'], [5, 7, 8, 5]], ('toronto', 'is'): [['six', 'drake'], [2, 3]]})
+    {('toronto', 'is'): [['six', 'drake'], [0.4, 0.6]], ('u', 'r'): [['kind', 'nice', 'cool', 'lit'], [0.2, 0.28, 0.32, 0.2]], ('i', 'love'): [['c', 'js', 'py3'], [0.2, 0.4, 0.4]]}
+    '''
+    
+    keys_list = []
+    for i in range(0, len(counts)):
+        keys_list.append(list(counts)[i])
+
+    #print(keys_list)
+    
+    words_and_count_list = []
+    for i in keys_list:
+        words_and_count_list.append(counts[i])
+
+    #print(words_and_count_list)
+
+    for i in range(0, len(keys_list)):
+        words_and_count_list[i][1] = get_prob_from_count(words_and_count_list[i][1])
+
+    #print(words_and_count_list)
+
+    ngram = {}
+
+    for i in range(0, len(keys_list)):
+        ngram[tuple(keys_list[i])] = words_and_count_list[i]
+
+    return ngram
+
+def build_ngram_model(words, n):
+    '''
+    (list, int) -> dict
+
+    This function utilizes the previous functions to generate a dictionary of maximum 15 words that follow an N-gram
+    and returns that dictionary with the words in descending order of probability.
+
+    >>>build_ngram_model(['the', 'child', 'will', 'the', 'child', 'can', 'the', 'child', 'will', 'the', 'child','may','go', 'home', '.'], 2)
+    {('child', 'can'): [['the'], [1.0]], ('child', 'may'): [['go'], [1.0]], ('the', 'child'): [['will', 'may', 'can'], [0.5, 0.25, 0.25]], ('child', 'will'): [['the'], [1.0]], ('will', 'the'): [['child'], [1.0]], ('go', 'home'): [['.'], [1.0]], ('can', 'the'): [['child'], [1.0]], ('may', 'go'): [['home'], [1.0]]}
+    '''
+
+    initial_dict = build_ngram_counts(words, n)
+    pruned_dict = prune_ngram_counts(initial_dict, 15)
+    probify_dict = probify_ngram_counts(pruned_dict)
+            
+    return probify_dict
+
+def gen_bot_list(ngram_model, seed, num_tokens=0):
+    '''
+    (dict, tup, int) -> list
+
+    This function checks if there is an argument for num_tokens, if there is none then it returns an empty list, then
+    it checks if the num_tokens is less than the length of the seed, if it is, return the corresponding list, if num 
+    of tokens is greater than seed length, return randomly generated list of tokens. If the seed is not in the model
+    the function exits.
+
+    >>>gen_bot_list(ngram_model, ('hello', 'world'))
+    []
+    >>>gen_bot_list(ngram_model, ('hello', 'world'), 5)
+    ['hello', 'world']
+    >>>gen_bot_list(ngram_model, ('the', 'child'), 5)
+    ['the', 'child', 'will', 'the', 'child']
+    '''
+
+    if num_tokens is 0:
+        return []
+
+    elif num_tokens <= len(list(seed)):
+        gen_list = []
+        for i in range(0, num_tokens):
+            gen_list.append((list(seed))[i])
+
+        return gen_list
+    
+    else:
+        gen_list = []
+        seed_length = len(seed)
+
+        for elem in range(0, len(seed)):
+            gen_list.append(list(seed)[elem])
+            
+        for i in range(0, num_tokens-(len(seed))):
+            if seed in ngram_model:
+                next_token = utilities.gen_next_token(seed, ngram_model)
+                print(next_token)
+                gen_list.append(next_token)
+                seed_list = []
+                for j in range(seed_length, 0, -1):
+                    seed_list.append(gen_list[len(gen_list)-j])
+                seed = tuple(seed_list)
+                print(seed)
+            else:
+                return gen_list
+       
+        return gen_list
+
+def gen_bot_text(token_list, bad_author):
+    '''
+    (list, bool) -> str
+
+    This function takes the given list, captilizes the first word, and subsequent start of sentence works and the words in
+    ALWAYS_CAPITALIZE. It then joins them together to form a list and remove the spaces seperating end of sentence punctuation
+    and the word before it.
+
+    >>>gen_bot_text(['this', 'is', 'a', 'string', 'of', 'text', '.', 'which', 'needs', 'to', 'be', 'created', '.'], False)
+    'This is a string of text. Which needs to be created.'
+    '''
+    END_OF_SENTENCE_PUNCTUATION = ['?', '.', '!']
+    ALWAYS_CAPITALIZE = ["I", "Montmorency", "George", "Harris", "J", "London", "Thames", "Liverpool", "Flatland", "", "Mrs", "Ms", "Mr", "William", "Samuel"]
+
+    if bad_author == True:
+        return ' '.join(token_list)
+
+    elif len(token_list) == 1:
+        return token_list[0]
+
+    else:
+        new_token_list = []
+        for i in range(0, len(token_list)):
+            if token_list[i] == token_list[0]:
+                token_list[i] = str.capitalize(token_list[i])
+
+            if token_list[i] in END_OF_SENTENCE_PUNCTUATION and i < len(token_list) - 1:
+                token_list[i+1] = str.capitalize(token_list[i+1])
+
+            if token_list[i] in ALWAYS_CAPITALIZE:
+                token_list[i] = str.capitalize(token_list[i])
+
+            new_token_list.append(token_list[i])
+    
+    text = ' '.join(new_token_list)
+    text = text.replace(' .', '.')
+    text = text.replace(' ?', '?')
+    text = text.replace(' !', '!')
+
+    return text
+
+def write_story(file_name, text, title, student_name, author, year):
+    '''
+    (str, str, str, str, str, int) -> str
+
+    This function takes the given text and outputs the new text in story format to a new file under file_name
+
+    '''
+    text_list = text.split()
+    year = str(year)
+
+    text_line = []
+    char_counter_list = []
+
+    story_text = open(file_name, 'w')
+    #making the title page
+    title_page_list = []
+    for i in range(0, 10):
+        title_page_list.append('\n')
+
+    title_page_list.append(title + ': ' + year + ', ' + 'UNLEASHED' + '\n')
+    title_page_list.append(student_name + ', ' + 'inspired by ' + author + '\n')
+    title_page_list.append('Copyright year published ' + '(' + year + ')' + ', ' + 'publisher: EngSci press' + '\n')
+
+    for i in range(0, 17):
+        title_page_list.append('\n')
+
+    story_text.writelines(title_page_list)
+    
+    char_counter = 0
+    line_counter = 0
+    page_number = 1
+    page_counter = 0
+    chapter_counter = 2
+
+    story_text.write('CHAPTER ' + '1' + '\n\n')
+
+    for i in range(0, len(text_list)):
+
+        if char_counter + len(text_list[i]) + 1 <= 90:
+            if char_counter == 0:
+                char_counter = char_counter + len(text_list[i])
+                char_counter_list.append(text_list[i])
+            else:
+                char_counter = char_counter + len(text_list[i]) + 1
+                char_counter_list.append(text_list[i])
+            if i == len(text_list)-1:
+                line_of_text = ' '.join(char_counter_list)
+                story_text.write(line_of_text)
+                for j in range(0, 30-line_counter-3):
+                    story_text.write('\n')
+                story_text.write(str(page_number) + '\n')
+                
+        else:
+            char_counter_list[len(char_counter_list)-1] = char_counter_list[len(char_counter_list)-1] + '\n'
+            line_of_text = ' '.join(char_counter_list)
+            story_text.write(line_of_text)
+            char_counter_list = []
+            char_counter_list.append(text_list[i])
+            char_counter = len(text_list[i])
+            line_counter += 1
+
+            if line_counter == 26:
+                story_text.write('\n' + str(page_number) + '\n')
+                page_number += 1
+                page_counter += 1
+                line_counter = -2
+        
+            if page_counter == 12:
+                page_counter = 0  
+
+            if line_counter == -2 and page_counter == 0:
+                story_text.write('CHAPTER ' + str(chapter_counter) + '\n\n')
+                chapter_counter += 1      
+                line_counter = 0
+
+    return
+
+if __name__=='__main__':
+    #print(parse_story('test_text_parsing.txt'))
+    #print(get_prob_from_count([10, 20, 40, 30]))
+    #print(build_ngram_counts(['the', 'child', 'will', 'go', 'out', 'to', 'play', ',', 'and', 'the', 'child', 'can', 'not', 'be', 'sad', 'anymore', '.'], 2))
+    #print(prune_ngram_counts({('i', 'love'): [['js', 'py3', 'c', 'no'], [20, 20, 10, 2]],('u', 'r'): [['cool', 'nice', 'lit', 'kind'], [8, 7, 5, 5]],('toronto', 'is'): [['six', 'drake'], [2, 3]]}, 3))
+    #print(probify_ngram_counts({('toronto', 'is'): [['drake', 'six'], [3, 2]], ('u', 'r'): [['cool', 'nice', 'kind', 'lit'], [8, 7, 5, 5]], ('i', 'love'): [['py3', 'js', 'c'], [20, 20, 10]]}))
+    #print(build_ngram_model(['the', 'child', 'will', 'the', 'child', 'can', 'the', 'child', 'will', 'the', 'child','may','go', 'home', '.'], 2))
+    #print(gen_bot_list({('the', 'child'): [['will', 'can','may'], [0.5, 0.25, 0.25]], ('child', 'will'): [['the'], [1.0]], ('will', 'the'): [['child'], [1.0]], ('can', 'the'): [['child'], [1.0]], ('child', 'may'): [['go'], [1.0]], ('may', 'go'): [['home'], [1.0]], ('go', 'home'): [['.'], [1.0]]}, ('the', 'child'), 1))
+    #print(gen_bot_text(['this', 'is', 'a', 'string', 'of', 'text', '.', 'which', 'needs', 'to', 'be', 'created', '.'], False))
+    text = ' '.join(parse_story('308.txt'))
+    write_story('test_write_story_student.txt', text, 'Three Men in a Boat', 'Jerome K. Jerome', 'Jerome K. Jerome', 1889)
