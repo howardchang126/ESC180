@@ -1,0 +1,81 @@
+import time
+
+def constructBST(fileName):
+
+    text_file = open(fileName, 'r')
+    file_contents = text_file.read()
+    file_list = file_contents.split()
+
+    binary_search_tree = BST()
+
+    for i in file_list:
+        binary_search_tree.insert(i)
+
+    return binary_search_tree
+
+class Node:
+    def __init__(self, data=None):
+        self.data = data
+        self.left = left=None
+        self.right = right=None
+
+    def __str__(self):
+        return str(self.data)
+
+class BST:
+    def __init__(self):
+        self.root = None
+
+    def insert(self, data):
+        if self.root == None: #sets first insert as root if root is empty
+            self.root = Node(data)
+        else:
+            self.insert1(data, self.root) #recursively uses the not empty node to check for where to insert data
+
+    def insert1(self, data, current_node):
+        if data > current_node.data: #checks if data is greater than the parent node
+            if current_node.right == None: #checks if the node is empty
+                current_node.right = Node(data)
+            else: #uses the not empty node again to see where to insert data
+                self.insert1(data, current_node.right)
+        elif data < current_node.data: #checks if data is less than parent node
+            if current_node.left == None: 
+                current_node.left = Node(data)
+            else:
+                self.insert1(data, current_node.left)
+
+    def search(self, data): #search method
+        start = time.time()
+        if self.root != None:
+            data_found = self.search1(data, self.root) #recursively searches for data similar to insert
+            if data_found == True:
+                print('Found')
+                print('Elapsed time: ' + str(time.time() - start) + ' seconds')
+                return
+            else:
+                return print('Not Found')
+        else:
+            return None
+
+    def search1(self, data, current_node):
+        if data < current_node.data and current_node.left != None: #checks if data is less than parent and the left child exists
+            return self.search1(data, current_node.left)
+        elif data > current_node.data and current_node.right != None:
+            return self.search1(data, current_node.right)
+
+        if data == current_node.data:
+            return True
+
+if __name__=='__main__':
+    binary_search_tree = constructBST('websites2.txt')
+
+    text_file = open('websites2.txt', 'r')
+    file_contents = text_file.read()
+    file_list = file_contents.split()
+
+    for i in file_list:
+        binary_search_tree.search(i)
+
+
+
+
